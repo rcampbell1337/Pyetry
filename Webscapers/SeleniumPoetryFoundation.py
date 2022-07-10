@@ -1,35 +1,48 @@
 from selenium import webdriver
 from typing import List
-import pandas as pd
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions
+from Webscapers.IWebscraper import IWebscraper
 
 
-class PoemScraper:
+class SeleniumPoetryFoundation(IWebscraper):
     """
-    Class contains all methods necessary to scrape a poetry website for a list of poems.
+    Class contains all methods necessary to scrape a the poetry foundation
+    website for a list of poems.
     """
-    def __init__(self):
+    __doc__ = IWebscraper.__doc__ + __doc__
+
+    def __init__(self, number_of_pages: int):
         self.driver = self.setup_chrome_driver(["--headless"])
         self.list_of_poems: List[str] = []
-        self.url = f"https://www.poetryfoundation.org/poems/browse#page=1&sort_by=recently_added"
+        self.number_of_pages = number_of_pages
+        self.url = f"https://www.poetryfoundation.org/poems/browse"
 
-    def scrape_poetry_page_and_get_poems(self) -> List[str]:
+    def scrape_poetry_pages_and_return_a_formatted_poetry_list(self) -> List[str]:
+        """
+        The Poetry Foundation implementation.
+        """
+        for i in range(self.number_of_pages):
+            url = f"{self.url}#page={i}sort_by=recently_added"
+            self.scrape_poetry_page_and_add_to_poetry_list(url)
+        return self.format_and_return_a_clean_list_of_poems()
+
+    def scrape_poetry_page_and_add_to_poetry_list(self, url: str) -> None:
         """
         Scrapes a given poetry page and returns all of the poems on that page in a list format.
         :return: A list of poems.
         """
-        self.driver.get(self.url)
+        self.driver.get(url)
         elements: WebElement = self.driver.find_element(By.CLASS_NAME, "c-assetViewport")
         poem_links: List[WebElement] = elements.find_elements(By.TAG_NAME, "a")
         all_links: List[str] = [x.get_attribute("href") for x in poem_links]
-        list_of_poems: List[str] = []
         for link in all_links:
             self.add_valid_poem_to_list(link)
-        return self.remove_useless_formatting(list_of_poems)
 
     def add_valid_poem_to_list(self, link: str) -> None:
         """
@@ -42,20 +55,18 @@ class PoemScraper:
         if len(selected_poem) > 0:
             self.list_of_poems.append(selected_poem[0].get_attribute("innerText"))
 
-    @staticmethod
-    def remove_useless_formatting(poems: List[str]) -> List[str]:
+    def format_and_return_a_clean_list_of_poems(self) -> List[str]:
         """
         An actually quite tricky method, has to remove all of the unnecessary unicode formatting provided by
         https://www.poetryfoundation.org/ (Thanks for that!!!)
         Removes all of the escape characters, and foreign languages from the list of poems retrieved.
-        :param poems: The list of poems to be formatted.
         :return: A list of beautifully formatted poems for CSV conversion.
         """
-        escapes = ''.join([chr(char) for char in range(1, 32)])
+        escapes = ' '.join([chr(char) for char in range(1, 32)])
         translator = str.maketrans('', '', escapes)
 
         # Remove any extra jazz from the strings
-        return [poem.translate(translator).replace("\u2003", " ").replace("\xa0", " ") for poem in poems]
+        return [poem.translate(translator).replace("\u2003", " ").replace("\xa0", " ") for poem in self.list_of_poems]
 
     @staticmethod
     def setup_chrome_driver(option_set: List[str]):
@@ -68,47 +79,3 @@ class PoemScraper:
         for option in option_set:
             options.add_argument(option)
         return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    def write_poetry_page_to_txt_file(self, file_name: str) -> None:
-        """
-        Writes all of the poems in a poem list to a file.
-        :param file_name: The name of the file.
-        :return: None.
-        """
-        for poem in self.list_of_poems:
-            self.write_line_to_file(file_name, poem.replace("\n", " ")) if poem is not None else None
-
-    def convert_alot_of_poetry_to_csv(self):
-        """
-        The factory method which will generate all of the poetry data for the AI.
-        :return: None.
-        """
-        for index in range(2):
-            self.write_poetry_page_to_txt_file("poetry_csvs/poetry_list.txt")
-        self.convert_file_to_csv("poetry_csvs/poetry_list.txt", "poetry_csvs/poetry_list.csv")
-
-    @staticmethod
-    def convert_file_to_csv(txt_file: str, csv_file: str) -> None:
-        """
-        Converts a file to a .csv file.
-        :param txt_file: The original .txt file.
-        :param csv_file: The new .csv file name and location.
-        :return: None.
-        """
-        read_file = pd.read_csv(txt_file, encoding='cp1252')
-        read_file.to_csv(csv_file, index=None)
-
-    @staticmethod
-    def write_line_to_file(file_name: str, poem: str) -> None:
-        """
-        Appends a given poem to a file.
-        :param file_name: The name of the file.
-        :param poem: The poem to be written.
-        :return: None.
-        """
-        f = open(file_name, "a")
-        f.write(poem)
-        f.close()
-
-
-print(PoemScraper().scrape_poetry_page_and_get_poems())
