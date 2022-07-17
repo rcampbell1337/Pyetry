@@ -34,5 +34,3 @@ So there are basically 4/ 5 items of work to this project listed below:
 3. Use  ML to analyse the poetry CSV and generate a poem from it.
 4. Display this poem in a nice GUI.
 5. (optional) Refactor the work so it isn't a jumbled mess of learning a new technology (inc. unit tests).
-
-This project focuses primarily on the idea of MVP (minimum viable product) as i expect there to be bugs throughout just by nature of learning something new.
