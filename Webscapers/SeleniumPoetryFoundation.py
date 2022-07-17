@@ -40,17 +40,18 @@ class SeleniumPoetryFoundation(IWebscraper):
         """
         self.driver.refresh()
         self.driver.get(url)
-        elements: WebElement = self.driver.find_element(By.CLASS_NAME, "c-assetViewport")
         received_links = False
         all_links: List[str] = []
 
         # TODO: Write something actually good here
         while not received_links:
             try:
+                elements: WebElement = self.driver.find_element(By.CLASS_NAME, "c-assetViewport")
                 poem_links = elements.find_elements(By.TAG_NAME, "a")
                 all_links = [link.get_attribute("href") for link in poem_links]
                 received_links = True
             except StaleElementReferenceException:
+                self.driver.get(url)
                 pass
 
         for link in all_links:
