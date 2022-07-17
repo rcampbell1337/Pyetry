@@ -17,7 +17,7 @@ class FileHandler:
         :return: None.
         """
         for poem in self.list_of_poems:
-            self.write_line_to_file(file_name, poem.replace("\n", " ")) if poem is not None else None
+            self.write_line_to_file(file_name, poem) if poem is not None else None
 
         # This is deliberately misspelled as a reference to the angry video game nerd:
         # https://youtu.be/Gip-_Fh2Yx0?t=949
@@ -44,5 +44,5 @@ class FileHandler:
         :param csv_file: The new .csv file name and location.
         :return: None.
         """
-        read_file = pd.read_csv(txt_file, encoding='cp1252')
+        read_file = pd.read_csv(txt_file, encoding='cp1252', delimiter=';', on_bad_lines='skip')
         read_file.to_csv(csv_file, index=None)

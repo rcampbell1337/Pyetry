@@ -1,12 +1,13 @@
 from selenium import webdriver
 from typing import List
+
+from selenium.common import StaleElementReferenceException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from Webscapers.IWebscraper import IWebscraper
-import click
 
 
 class SeleniumPoetryFoundation(IWebscraper):
@@ -20,29 +21,38 @@ class SeleniumPoetryFoundation(IWebscraper):
         self.driver = self.setup_chrome_driver(["--headless"])
         self.list_of_poems: List[str] = []
         self.number_of_pages = number_of_pages
-        self.url = f""
         self.number_of_poems_to_process = number_of_pages * 20
         self.number_of_poems_processed = 0
-        self.progress = click.progressbar(show_pos=True, length=number_of_pages * 20, show_percent=True)
 
     def scrape_poetry_pages_and_return_a_formatted_poetry_list(self) -> List[str]:
         """
         The Poetry Foundation implementation.
         """
-        for i in range(1, self.number_of_pages):
-            self.url = f"https://www.poetryfoundation.org/poems/browse#page={i}&sort_by=recently_added"
-            self.scrape_poetry_page_and_add_to_poetry_list()
+        for i in range(1, self.number_of_pages + 1):
+            url: str = f"https://www.poetryfoundation.org/poems/browse#page={i}&sort_by=recently_added"
+            self.scrape_poetry_page_and_add_to_poetry_list(url)
         return self.format_and_return_a_clean_list_of_poems()
 
-    def scrape_poetry_page_and_add_to_poetry_list(self) -> None:
+    def scrape_poetry_page_and_add_to_poetry_list(self, url) -> None:
         """
         Scrapes a given poetry page and returns all of the poems on that page in a list format.
         :return: A list of poems.
         """
-        self.driver.get(self.url)
+        self.driver.refresh()
+        self.driver.get(url)
         elements: WebElement = self.driver.find_element(By.CLASS_NAME, "c-assetViewport")
-        poem_links: List[WebElement] = elements.find_elements(By.TAG_NAME, "a")
-        all_links: List[str] = [x.get_attribute("href") for x in poem_links]
+        received_links = False
+        all_links: List[str] = []
+
+        # TODO: Write something actually good here
+        while not received_links:
+            try:
+                poem_links = elements.find_elements(By.TAG_NAME, "a")
+                all_links = [link.get_attribute("href") for link in poem_links]
+                received_links = True
+            except StaleElementReferenceException:
+                pass
+
         for link in all_links:
             self.add_valid_poem_to_list(link)
 
@@ -52,6 +62,7 @@ class SeleniumPoetryFoundation(IWebscraper):
         :param link: The link for the poem page.
         :return: None.
         """
+        self.driver.refresh()
         self.driver.get(link)
         selected_poem: List[WebElement] = self.driver.find_elements(By.CLASS_NAME, "o-poem")
         if len(selected_poem) > 0:
