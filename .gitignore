@@ -152,7 +152,6 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-poetry_csvs/
 
 .idea
 

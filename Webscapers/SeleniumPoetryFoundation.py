@@ -5,9 +5,8 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions
 from Webscapers.IWebscraper import IWebscraper
+import click
 
 
 class SeleniumPoetryFoundation(IWebscraper):
@@ -21,23 +20,26 @@ class SeleniumPoetryFoundation(IWebscraper):
         self.driver = self.setup_chrome_driver(["--headless"])
         self.list_of_poems: List[str] = []
         self.number_of_pages = number_of_pages
-        self.url = f"https://www.poetryfoundation.org/poems/browse"
+        self.url = f""
+        self.number_of_poems_to_process = number_of_pages * 20
+        self.number_of_poems_processed = 0
+        self.progress = click.progressbar(show_pos=True, length=number_of_pages * 20, show_percent=True)
 
     def scrape_poetry_pages_and_return_a_formatted_poetry_list(self) -> List[str]:
         """
         The Poetry Foundation implementation.
         """
-        for i in range(self.number_of_pages):
-            url = f"{self.url}#page={i}sort_by=recently_added"
-            self.scrape_poetry_page_and_add_to_poetry_list(url)
+        for i in range(1, self.number_of_pages):
+            self.url = f"https://www.poetryfoundation.org/poems/browse#page={i}&sort_by=recently_added"
+            self.scrape_poetry_page_and_add_to_poetry_list()
         return self.format_and_return_a_clean_list_of_poems()
 
-    def scrape_poetry_page_and_add_to_poetry_list(self, url: str) -> None:
+    def scrape_poetry_page_and_add_to_poetry_list(self) -> None:
         """
         Scrapes a given poetry page and returns all of the poems on that page in a list format.
         :return: A list of poems.
         """
-        self.driver.get(url)
+        self.driver.get(self.url)
         elements: WebElement = self.driver.find_element(By.CLASS_NAME, "c-assetViewport")
         poem_links: List[WebElement] = elements.find_elements(By.TAG_NAME, "a")
         all_links: List[str] = [x.get_attribute("href") for x in poem_links]
@@ -53,7 +55,10 @@ class SeleniumPoetryFoundation(IWebscraper):
         self.driver.get(link)
         selected_poem: List[WebElement] = self.driver.find_elements(By.CLASS_NAME, "o-poem")
         if len(selected_poem) > 0:
-            self.list_of_poems.append(selected_poem[0].get_attribute("innerText"))
+            poem = selected_poem[0].get_attribute("innerText")
+            self.list_of_poems.append(poem)
+            self.number_of_poems_processed += 1
+            self.print_progress_bar(self.number_of_poems_processed, prefix='Progress:', suffix='Complete', length=50)
 
     def format_and_return_a_clean_list_of_poems(self) -> List[str]:
         """
@@ -62,11 +67,12 @@ class SeleniumPoetryFoundation(IWebscraper):
         Removes all of the escape characters, and foreign languages from the list of poems retrieved.
         :return: A list of beautifully formatted poems for CSV conversion.
         """
-        escapes = ' '.join([chr(char) for char in range(1, 32)])
+        escapes = ''.join([chr(char) for char in range(1, 32)])
         translator = str.maketrans('', '', escapes)
 
         # Remove any extra jazz from the strings
-        return [poem.translate(translator).replace("\u2003", " ").replace("\xa0", " ") for poem in self.list_of_poems]
+        return [poem.translate(translator).replace(";", " ").encode('ascii', errors='ignore').decode("utf-8") + ";" for
+                poem in self.list_of_poems]
 
     @staticmethod
     def setup_chrome_driver(option_set: List[str]):
@@ -79,3 +85,24 @@ class SeleniumPoetryFoundation(IWebscraper):
         for option in option_set:
             options.add_argument(option)
         return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+    def print_progress_bar(self, iteration, prefix='', suffix='', decimals=1, length=100, fill='█',
+                           print_end="\r"):
+        """
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            length      - Optional  : character length of bar (Int)
+            fill        - Optional  : bar fill character (Str)
+            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+        """
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(self.number_of_poems_to_process)))
+        filled_length = int(length * iteration // self.number_of_poems_to_process)
+        bar = fill * filled_length + '-' * (length - filled_length)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix}')
+        # Print New Line on Complete
+        if iteration == self.number_of_poems_to_process:
+            print()
