@@ -7,24 +7,23 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from Webscapers.IWebscraper import IWebscraper
+from DataFetchers.IDataFetcher import IDataFetcher
 
 
-class SeleniumPoetryFoundation(IWebscraper):
+class SeleniumPoetryFoundation(IDataFetcher):
     """
     Class contains all methods necessary to scrape a the poetry foundation
     website for a list of poems.
     """
-    __doc__ = IWebscraper.__doc__ + __doc__
+    __doc__ = IDataFetcher.__doc__ + __doc__
 
     def __init__(self, number_of_pages: int):
+        super().__init__()
         self.driver = self.setup_chrome_driver(["--headless"])
         self.list_of_poems: List[str] = []
         self.number_of_pages = number_of_pages
-        self.number_of_poems_to_process = number_of_pages * 20
-        self.number_of_poems_processed = 0
 
-    def scrape_poetry_pages_and_return_a_formatted_poetry_list(self) -> List[str]:
+    def get_list_of_poems(self) -> List[str]:
         """
         The Poetry Foundation implementation.
         """
@@ -32,6 +31,9 @@ class SeleniumPoetryFoundation(IWebscraper):
             url: str = f"https://www.poetryfoundation.org/poems/browse#page={i}&sort_by=recently_added"
             self.scrape_poetry_page_and_add_to_poetry_list(url)
         return self.format_and_return_a_clean_list_of_poems()
+
+    def number_of_poems(self):
+        return self.number_of_pages * 20
 
     def scrape_poetry_page_and_add_to_poetry_list(self, url) -> None:
         """
@@ -69,8 +71,7 @@ class SeleniumPoetryFoundation(IWebscraper):
         if len(selected_poem) > 0:
             poem = selected_poem[0].get_attribute("innerText")
             self.list_of_poems.append(poem)
-            self.number_of_poems_processed += 1
-            self.print_progress_bar(self.number_of_poems_processed, prefix='Progress:', suffix='Complete', length=50)
+            self.update_and_print_progress_bar()
 
     def format_and_return_a_clean_list_of_poems(self) -> List[str]:
         """
@@ -97,24 +98,3 @@ class SeleniumPoetryFoundation(IWebscraper):
         for option in option_set:
             options.add_argument(option)
         return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-
-    def print_progress_bar(self, iteration, prefix='', suffix='', decimals=1, length=100, fill='█',
-                           print_end="\r"):
-        """
-        Call in a loop to create terminal progress bar
-        @params:
-            iteration   - Required  : current iteration (Int)
-            prefix      - Optional  : prefix string (Str)
-            suffix      - Optional  : suffix string (Str)
-            decimals    - Optional  : positive number of decimals in percent complete (Int)
-            length      - Optional  : character length of bar (Int)
-            fill        - Optional  : bar fill character (Str)
-            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-        """
-        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(self.number_of_poems_to_process)))
-        filled_length = int(length * iteration // self.number_of_poems_to_process)
-        bar = fill * filled_length + '-' * (length - filled_length)
-        print(f'\r{prefix} |{bar}| {percent}% {suffix}')
-        # Print New Line on Complete
-        if iteration == self.number_of_poems_to_process:
-            print()

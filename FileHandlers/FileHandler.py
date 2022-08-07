@@ -1,4 +1,4 @@
-from Webscapers.IWebscraper import IWebscraper
+from DataFetchers.IDataFetcher import IDataFetcher
 import pandas as pd
 from typing import List
 
@@ -7,8 +7,8 @@ class FileHandler:
     """
     Class writes poetry into a .txt file and can then convert it into .csv
     """
-    def __init__(self, webscraper: IWebscraper):
-        self.list_of_poems: List[str] = webscraper.scrape_poetry_pages_and_return_a_formatted_poetry_list()
+    def __init__(self, data_fetcher: IDataFetcher):
+        self.list_of_poems: List[str] = data_fetcher.get_list_of_poems()
 
     def write_poems_to_txt_file(self, file_name: str) -> None:
         """
